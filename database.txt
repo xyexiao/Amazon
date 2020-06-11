@@ -1,0 +1,54 @@
+商品表：
+asin			编号
+image			图片
+review_number	评论人数
+review_score	评论分数
+price			价格
+level			类目层级
+catalog			类别目录
+title			标题
+brand			品牌名称
+sellers			销售方式
+size			尺寸
+weight			重量
+address			页面地址
+release_data	上架日期
+add_time		数据添加日期
+update_time		数据更新日期
+fulled			是否填完
+
+类别表：
+name 			类别名称
+parent_name		父类别名称
+
+排名表：
+asin			商品编号
+rank_number		排名数
+rank_name		排名类别
+add_time		添加时间
+
+图片表：
+link			图片链接
+name 			图片名称
+
+
+create table product(
+asin varchar(20) not NULL,
+image varchar(100),
+review_number int,
+review_score float,
+price float,
+level int,
+catalog varchar(200),
+title varchar(400),
+brand varchar(100),
+sellers varchar(10),
+size varchar(100),
+weight varchar(200),
+address varchar(400),
+release_data date,
+add_time datetime,
+update_time datetime,
+fulled int,
+primary key(asin)
+)default charset=utf8;
