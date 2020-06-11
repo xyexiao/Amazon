@@ -161,26 +161,40 @@ def findReleaseData(page_source):
 def fullProductInfo(page_source, asin):
 	catalog = findCatalog(page_source)
 	level = len(catalog)
+	print(level)
 	catalog = ' > '.join(catalog)
+	print(catalog)
 	brand = findBrand(page_source)
+	print(brand)
 	sellers = findSellers(page_source)
+	print(sellers)
 	size = findSize(page_source)
+	print(size)
 	weight = findWeight(page_source)
+	print(weight)
 	release_data = findReleaseData(page_source)
+	if release_data:
+		release_data = "'%s'" % release_data
+	else:
+		release_data = "NULL"
+	print(release_data)
 	ranks = findRank(page_source)
+	print(ranks)
 	try:
 		with connection.cursor() as cursor:
 			sql = '''update product set level=%d,catalog='%s',brand='%s',
-			sellers='%s',size='%s',weight='%s',release_data='%s',fulled=1,
+			sellers='%s',size='%s',weight='%s',release_data=%s,fulled=1,
 			update_time=now() where asin='%s' ''' % (level, catalog, brand,
 			sellers, size, weight, release_data, asin)
 			cursor.execute(sql)
+			print("update OK")
 			for rank in ranks:
 				sql = '''insert into ranking(asin, rank_name, rank_number,
 				add_time)values('%s','%s',%d,now())''' % (asin, rank[1], int(rank[0]))
 				cursor.execute(sql)
+			print("rank insert OK")
 	except Exception as e:
-		pass
+		print('2', e)
 	connection.commit()
 
 def crwalList(page_source):
@@ -266,11 +280,12 @@ def main(url):
 			sql = "select asin, address from product where fulled is NULL"
 			cursor.execute(sql)
 			result = cursor.fetchall()
+			print(len(result))
 			for i in result:
 				page_source = getPageSource(i[1])
 				fullProductInfo(page_source, i[0])
 	except Exception as e:
-		print(e)
+		print("1", e)
 
 
 if __name__ == '__main__':
