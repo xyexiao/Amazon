@@ -45,6 +45,15 @@ def setChrome():
 
 if __name__ == '__main__':
 	# crawPageSource('https://www.amazon.com/2020-American-Certificate-Authenticity-Uncirculated/dp/B087D7NTG2/ref=zg_bs_coins_2?ie=UTF8&language=en_US&psc=1&refRID=KQHB391G1KJF3MW13Q7Q')
-	setChrome()
+	# setChrome()
 # 'https://www.amazon.com/Best-Sellers-Electronics-TV-Accessories/zgbs/electronics/3230976011/ref=zg_bs_nav_e_2_1266092011'
 # 'https://www.amazon.com/Best-Sellers-Electronics-TV-Accessories/zgbs/electronics/3230976011/ref=zg_bs_pg_2?_encoding=UTF8&pg=2'
+	with open("D:/a.txt", "r", encoding="utf-8") as f:
+		p = f.read()
+	page_source = etree.HTML(p)
+	r = page_source.xpath("//a[@id='1dsfd234']")
+	print(r)
+'''
+https://www.amazon.com/Best-Sellers-Computers-Accessories-Streaming-Media-Players/zgbs/pc/13447451/ref=zg_bs_nav_pc_3_537316
+
+'''

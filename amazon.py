@@ -8,6 +8,7 @@ import datetime
 import time
 
 
+# 数据库连接和参数
 connection = pymysql.connect(
 	host = "localhost",
 	user = "root",
@@ -15,14 +16,21 @@ connection = pymysql.connect(
 	db = "amazon",
 	charset = "utf8mb4"
 )
+# 图片保存文件夹的绝对路径
 imageFolder = "C:/Users/ASUS/Desktop/Amazon/image/"
-
+# 启动个人配置的Chrome浏览器
 option = webdriver.ChromeOptions()
 option.add_argument("--user-data-dir="+
 r"C:/Users/ASUS/AppData/Local/Google/Chrome/User Data/")
 driver = webdriver.Chrome(chrome_options=option)
 
+
 def setChrome():
+	'''
+	因为浏览器打开亚马逊网站的默认收货地址为中国，影响sellers的判断
+	所以此方法用于将收货地址改为10114邮编的纽约
+	(由于可以启用个人配置的浏览器，此方法弃用)
+	'''
 	driver.get("https://www.amazon.com/")
 	time.sleep(2)
 	element = driver.find_element_by_xpath("//div[@id='nav-global-location-slot']/span/a")
@@ -37,6 +45,9 @@ def setChrome():
 	time.sleep(4)
 
 def findRank(page_source):
+	'''
+	在网页源代码中查找商品的排名信息
+	'''
 	try:
 		trs = page_source.xpath("//table[@id='productDetails_detailBullets_sections1']/tbody/tr")
 		for tr in trs:
@@ -105,7 +116,9 @@ def findRank(page_source):
 	return []
 
 def findCatalog(page_source):
-	# 返回的list的长度就level
+	'''
+	在网页源代码中查找商品所属类别情况
+	'''
 	try:
 		catalog = page_source.xpath("//div[@id='wayfinding-breadcrumbs_feature_div']/ul/li/span/a/text()")
 		return [i.strip() for i in catalog]
@@ -114,6 +127,9 @@ def findCatalog(page_source):
 	return []
 
 def findBrand(page_source):
+	'''
+	在网页源代码中查找商品的品牌名称
+	'''
 	try:
 		brand = page_source.xpath("//a[@id='bylineInfo']/text()")[0]
 		return brand
@@ -122,7 +138,9 @@ def findBrand(page_source):
 	return ""
 
 def findSellers(page_source):
-	# 可以通过判断brand是不是Amazon来判断亚马逊自营
+	'''
+	在网页源代码中查找并判断商品的销售方式
+	'''
 	try:
 		info = page_source.xpath("//div[@id='merchant-info']/text()")
 		sellers = "".join([i.strip() for i in info])
@@ -138,6 +156,9 @@ def findSellers(page_source):
 	return ""
 
 def findSize(page_source):
+	'''
+	在网页源代码中查找商品尺寸大小
+	'''
 	try:
 		trs = page_source.xpath("//table[@id='productDetails_detailBullets_sections1']/tbody/tr")
 		for tr in trs:
@@ -177,6 +198,9 @@ def findSize(page_source):
 	return ""
 
 def findWeight(page_source):
+	'''
+	在网页源代码中查找商品重量信息
+	'''
 	try:
 		trs = page_source.xpath("//table[@id='productDetails_detailBullets_sections1']/tbody/tr")
 		for tr in trs:
@@ -235,6 +259,9 @@ def findWeight(page_source):
 	return ""
 
 def findReleaseData(page_source):
+	'''
+	在网页源代码中查找商品的上架日期
+	'''
 	monthDict = {
 		"January" : "1",
 		"February" : "2",
@@ -271,7 +298,25 @@ def findReleaseData(page_source):
 		pass
 	return ""
 
+def getPageSource(url):
+	'''
+	获取指定url链接页面的源代码
+	'''
+	start_time = time.time()
+	driver.get(url)
+	end_time = time.time()
+	with open("time.txt", "a") as f:
+		f.write(str(end_time-start_time)+"\n")
+	time.sleep(4)
+	page_source = driver.page_source
+	page_source = etree.HTML(page_source)
+	return page_source
+
 def fullProductInfo(page_source, asin):
+	'''
+	首先从页面源代码中查找商品的类别目录、类目层级、品牌名称、销售方式、尺寸大小、重量、上架日期和排名
+	然后根据商品的asin将处排名外的信息保存到product表中，排名信息保存到ranking表中
+	'''
 	catalog = findCatalog(page_source)
 	level = len(catalog)
 	print(level)
@@ -313,6 +358,10 @@ def fullProductInfo(page_source, asin):
 	connection.commit()
 
 def crwalList(page_source):
+	'''
+	获取商品列表中商品的链接、asin、图片链接、评论分数、评论人数、价格和标题，
+	先根据asin查询product表中是否已存在此商品，再将不存在的商品信息保存到product表
+	'''
 	product_list = page_source.xpath("//ol[@id='zg-ordered-list']/li")
 	for i, p in enumerate(product_list):
 		try:
@@ -362,7 +411,33 @@ def crwalList(page_source):
 			pass
 	connection.commit()
 
+def crawCatalog(url):
+	'''
+	递归的爬取类别目录和目录商品
+	'''
+	page_source = getPageSource(url)
+	crwalList(page_source)
+	next_page_url = page_source.xpath("//li[@class='a-last']/a/@href")[0]
+	page_source = getPageSource(next_page_url)
+	crwalList(page_source)
+	ul = page_source.xpath("//ul[@id='zg_browseRoot']")[0]
+	while True:
+		r = ul.xpath("./ul")
+		if r:
+			ul = r[0]
+		else:
+			break
+	select_span = ul.xpath("./li/span[@class='zg_selected']")
+	if select_span:
+		return
+	next_catalog_urls = ul.xpath("./li/a/@href")
+	for url in next_catalog_urls:
+		crawCatalog(url)
+
 def downloadImage():
+	'''
+	根据商品的图片链接下载保存到指定文件夹
+	'''
 	try:
 		with connection.cursor() as cursor:
 			sql = "select name, link from image where download is NULL"
@@ -380,6 +455,9 @@ def downloadImage():
 		pass
 
 def keepa():
+	'''
+	首先查询数据库中商品上架日期为空的商品，再通过keepa谷歌浏览器插件获取商品的上架日期，更新数据库
+	'''
 	with connection.cursor() as cursor:
 		sql = "select address, asin from product where release_data is NULL"
 		cursor.execute(sql)
@@ -400,24 +478,18 @@ def keepa():
 	except Exception as e:
 		pass
 
-def getPageSource(url):
-	start_time = time.time()
-	driver.get(url)
-	end_time = time.time()
-	with open("time.txt", "a") as f:
-		f.write(str(end_time-start_time)+"\n")
-	time.sleep(4)
-	page_source = driver.page_source
-	page_source = etree.HTML(page_source)
-	return page_source
-
-
 def work1(urls):
+	'''
+	根据指定的url列表获取商品信息
+	'''
 	for url in urls:
 		page_source = getPageSource(url)
 		crwalList(page_source)
 
 def work2():
+	'''
+	将product表中fulled字段为NULL的数据信息补充完整
+	'''
 	try:
 		with connection.cursor() as cursor:
 			sql = "select asin, address from product where fulled is NULL"
@@ -434,6 +506,8 @@ if __name__ == '__main__':
 	urls = [
 	"https://www.amazon.com/Best-Sellers-Electronics-TV-Accessories/zgbs/electronics/3230976011/ref=zg_bs_pg_2?_encoding=UTF8&pg=2"
 	]
+	url = "https://www.amazon.com/Best-Sellers-Electronics-Audio-Video-Accessories/zgbs/electronics/172532/ref=zg_bs_unv_e_3_10966881_1"
 	# work1(urls)
-	# work2()
-	keepa()
+	work2()
+	# keepa()
+	# crawCatalog(url)
