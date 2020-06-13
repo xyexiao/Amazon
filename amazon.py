@@ -307,6 +307,9 @@ def getPageSource(url, mod=0):
 	start_time = time.time()
 	driver.get(url)
 	try:
+		if mod == 0:
+			locator = (By.XPATH, "//ul[@id='zg_browseRoot']")
+			WebDriverWait(driver, 6, 1).until(EC.presence_of_element_located(locator))
 		if mod == 1:
 			locator = (By.XPATH, "//div[@id='prodDetails']")
 			WebDriverWait(driver, 6, 1).until(EC.presence_of_element_located(locator))
@@ -317,7 +320,7 @@ def getPageSource(url, mod=0):
 		ActionChains(driver).click(element).perform()
 		return getPageSource(url, mod)
 	except Exception as e:
-		print("getPageSource2", e)
+		pass
 	end_time = time.time()
 	with open("time.txt", "a") as f:
 		f.write(str(end_time-start_time)+"\n")
