@@ -31,6 +31,14 @@ add_time		添加时间
 link			图片链接
 name 			图片名称
 
+日志表：
+error_message	错误信息
+function_name	方法名
+line_number		行号
+add_time		添加时间
+asin			商品编号
+
+
 
 create table product(
 asin varchar(20) not NULL,
