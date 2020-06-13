@@ -1,5 +1,7 @@
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.common.by import By
 from selenium import webdriver
 from lxml import etree
 import pymysql
@@ -72,7 +74,7 @@ def findRank(page_source):
 				ranks.append([i.strip() for i in rank])
 		return ranks
 	except Exception as e:
-		pass
+		print("findRank1", e)
 	try:
 		ranks = page_source.xpath("//table[@id='productDetailsTable']//div[@class='content']/ul/li[@id='SalesRank']//text()")
 		result = []
@@ -92,7 +94,7 @@ def findRank(page_source):
 				ranks.append([i.strip() for i in rank])
 		return ranks
 	except Exception as e:
-		pass
+		print("findRank2", e)
 	try:
 		ranks = page_source.xpath("//div[@id='detail-bullets']/table//div[@class='content']/ul/li[@id='SalesRank']//text()")
 		result = []
@@ -112,7 +114,7 @@ def findRank(page_source):
 				ranks.append([i.strip() for i in rank])
 		return ranks
 	except Exception as e:
-		pass
+		print("findRank3", e)
 	return []
 
 def findCatalog(page_source):
@@ -123,7 +125,7 @@ def findCatalog(page_source):
 		catalog = page_source.xpath("//div[@id='wayfinding-breadcrumbs_feature_div']/ul/li/span/a/text()")
 		return [i.strip() for i in catalog]
 	except Exception as e:
-		pass
+		print("findCatalog1", e)
 	return []
 
 def findBrand(page_source):
@@ -134,7 +136,7 @@ def findBrand(page_source):
 		brand = page_source.xpath("//a[@id='bylineInfo']/text()")[0]
 		return brand
 	except Exception as e:
-		pass
+		print("findBrand1", e)
 	return ""
 
 def findSellers(page_source):
@@ -152,7 +154,7 @@ def findSellers(page_source):
 			return "FBA"
 		return sellers
 	except Exception as e:
-		pass
+		print("findSellers1", e)
 	return ""
 
 def findSize(page_source):
@@ -167,7 +169,7 @@ def findSize(page_source):
 				size = tr.xpath("./td//text()")[0]
 				return size.strip()
 	except Exception as e:
-		pass
+		print("findSize1", e)
 	try:
 		trs = page_source.xpath("//table[@id='productDetails_techSpec_section_1']/tbody/tr")
 		for tr in trs:
@@ -176,7 +178,7 @@ def findSize(page_source):
 				size = tr.xpath("./td//text()")[0]
 				return size.strip()
 	except Exception as e:
-		pass
+		print("findSize2", e)
 	try:
 		trs = page_source.xpath("//table[@id='productDetails_techSpec_section_2']/tbody/tr")
 		for tr in trs:
@@ -185,7 +187,7 @@ def findSize(page_source):
 				size = tr.xpath("./td//text()")[0]
 				return size.strip()
 	except Exception as e:
-		pass
+		print("findSize3", e)
 	try:
 		trs = page_source.xpath("//table[@class='a-bordered']/tbody/tr")
 		for tr in trs:
@@ -194,7 +196,7 @@ def findSize(page_source):
 				size = tr.xpath("./td[2]/p/text()")[0]
 				return size.strip()
 	except Exception as e:
-		pass
+		print("findSize4", e)
 	return ""
 
 def findWeight(page_source):
@@ -209,7 +211,7 @@ def findWeight(page_source):
 				weight = tr.xpath("./td//text()")[0]
 				return weight.strip()
 	except Exception as e:
-		pass
+		print("findWeight1", e)
 	try:
 		uls = page_source.xpath("//table[@id='productDetailsTable']//div[@class='content']/ul")
 		for ul in uls:
@@ -219,7 +221,7 @@ def findWeight(page_source):
 				weight = weight.replace("(", "")
 				return weight.strip()
 	except Exception as e:
-		pass
+		print("findWeight2", e)
 	try:
 		trs = page_source.xpath("//table[@id='productDetails_techSpec_section_1']/tbody/tr")
 		for tr in trs:
@@ -228,7 +230,7 @@ def findWeight(page_source):
 				weight = tr.xpath("./td//text()")[0]
 				return weight.strip()
 	except Exception as e:
-		pass
+		print("findWeight3", e)
 	try:
 		trs = page_source.xpath("//table[@id='productDetails_techSpec_section_2']/tbody/tr")
 		for tr in trs:
@@ -237,7 +239,7 @@ def findWeight(page_source):
 				weight = tr.xpath("./td//text()")[0]
 				return weight.strip()
 	except Exception as e:
-		pass
+		print("findWeight4", e)
 	try:
 		trs = page_source.xpath("//table[@class='a-bordered']/tbody/tr")
 		for tr in trs:
@@ -246,7 +248,7 @@ def findWeight(page_source):
 				weight = tr.xpath("./td[2]/p/text()")[0]
 				return weight.strip()
 	except Exception as e:
-		pass
+		print("findWeight5", e)
 	try:
 		lis = page_source.xpath("//div[@id='detail-bullets']/table//div[@class='content']/ul/li")
 		for li in lis:
@@ -255,7 +257,7 @@ def findWeight(page_source):
 				weight = li.xpath("./text()")[0].replace("(", "")
 				return weight.strip()
 	except Exception as e:
-		pass
+		print("findWeight6", e)
 	return ""
 
 def findReleaseData(page_source):
@@ -285,7 +287,7 @@ def findReleaseData(page_source):
 				month, day, year = release_data.strip().replace(",", " ").split()
 				return year+"-"+monthDict[month]+"-"+day
 	except Exception as e:
-		pass
+		print("findReleaseData1", e)
 	try:
 		trs = page_source.xpath("//table[@id='productDetails_techSpec_section_1']/tbody/tr")
 		for tr in trs:
@@ -295,19 +297,31 @@ def findReleaseData(page_source):
 				month, day, year = release_data.strip().replace(",", " ").split()
 				return year+"-"+monthDict[month]+"-"+day
 	except Exception as e:
-		pass
+		print("findReleaseData2", e)
 	return ""
 
-def getPageSource(url):
+def getPageSource(url, mod=0):
 	'''
 	获取指定url链接页面的源代码
 	'''
 	start_time = time.time()
 	driver.get(url)
+	try:
+		if mod == 1:
+			locator = (By.XPATH, "//div[@id='prodDetails']")
+			WebDriverWait(driver, 6, 1).until(EC.presence_of_element_located(locator))
+	except Exception as e:
+		print("getPageSource1", e)
+	try:
+		element = driver.find_element_by_xpath("//a[contains(text(), 'Try different image')]")
+		ActionChains(driver).click(element).perform()
+		return getPageSource(url, mod)
+	except Exception as e:
+		print("getPageSource2", e)
 	end_time = time.time()
 	with open("time.txt", "a") as f:
 		f.write(str(end_time-start_time)+"\n")
-	time.sleep(4)
+	# time.sleep(1)
 	page_source = driver.page_source
 	page_source = etree.HTML(page_source)
 	return page_source
@@ -354,7 +368,7 @@ def fullProductInfo(page_source, asin):
 				add_time)values('%s','%s',%d,now())''' % (asin, rank[1], int(rank[0]))
 				cursor.execute(sql)
 	except Exception as e:
-		pass
+		print('fullProductInfo1', e)
 	connection.commit()
 
 def crwalList(page_source):
@@ -371,27 +385,31 @@ def crwalList(page_source):
 			asin = words[words.index("dp") + 1]
 			image = p.xpath(".//img/@src")[0]
 		except Exception as e:
-			pass
+			print("crwalList1", e)
 		try:
 			review_score = p.xpath(".//div[contains(@class, 'a-icon-row')]/a[1]/@title")[0]
 			review_score = float(review_score.split("out")[0])
 		except Exception as e:
 			review_score = 0
+			print("crwalList2", e)
 		try:
 			review_number = p.xpath(".//div[contains(@class, 'a-icon-row')]/a[2]/text()")[0]
 			review_number = review_number.replace(",", "")
 			review_number = int(review_number)
 		except Exception as e:
 			review_number = 0
+			print("crwalList3", e)
 		try:
 			price = p.xpath(".//span[@class='p13n-sc-price']/text()")[0]
 			price = float(price.strip()[1:])
 		except Exception as e:
 			price = -1
+			print("crwalList4", e)
 		try:
 			title = p.xpath(".//div[@class='p13n-sc-truncated']/@title")[0]
 		except Exception as e:
 			title = p.xpath(".//div[@class='p13n-sc-truncated']/text()")[0]
+			print("crwalList5", e)
 		title = title.replace("'", r"\'")
 		try:
 			with connection.cursor() as cursor:
@@ -408,7 +426,7 @@ def crwalList(page_source):
 					image, image.split("/")[-1])
 					cursor.execute(sql)
 		except Exception as e:
-			pass
+			print("crwalList6", e)
 	connection.commit()
 
 def crawCatalog(url):
@@ -452,7 +470,7 @@ def downloadImage():
 				cursor.execute(sql)
 			connection.commit()
 	except Exception as e:
-		pass
+		print("downloadImage1", e)
 
 def keepa():
 	'''
@@ -476,7 +494,7 @@ def keepa():
 				cursor.execute(sql)
 		connection.commit()
 	except Exception as e:
-		pass
+		print("keepa1", e)
 
 def work1(urls):
 	'''
@@ -496,10 +514,10 @@ def work2():
 			cursor.execute(sql)
 			result = cursor.fetchall()
 			for i in result:
-				page_source = getPageSource(i[1])
+				page_source = getPageSource(i[1], mod=1)
 				fullProductInfo(page_source, i[0])
 	except Exception as e:
-		pass
+		print('work21', e)
 
 
 if __name__ == '__main__':
