@@ -2,13 +2,16 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.common.by import By
+from concurrent.futures import ThreadPoolExecutor
 from selenium import webdriver
 from lxml import etree
 import pymysql
+import traceback
 import requests
 import datetime
 import time
 import sys
+import os
 
 
 # 数据库连接和参数
@@ -19,27 +22,34 @@ connection = pymysql.connect(
 	db = "amazon",
 	charset = "utf8mb4"
 )
-# 图片保存文件夹的绝对路径
-imageFolder = "C:/Users/ASUS/Desktop/Amazon/image/"
+# 图片保存文件夹的名称
+imageFolder = "image"
+# 线程池最大线程数
+max_download_thread = 10
 # 启动个人配置的Chrome浏览器
+def setChrome():
+	option = webdriver.ChromeOptions()
+	option.add_argument("--user-data-dir="+
+	r"C:/Users/ASUS/AppData/Local/Google/Chrome/User Data/")
+	option.add_argument("--ignore-certificate-errors")
+	driver = webdriver.Chrome(chrome_options=option)
+	return driver
 
-option = webdriver.ChromeOptions()
-option.add_argument("--user-data-dir="+
-r"C:/Users/ASUS/AppData/Local/Google/Chrome/User Data/")
-option.add_argument("--ignore-certificate-errors")
-driver = webdriver.Chrome(chrome_options=option)
+driver = setChrome()
 
-def save_log(source_from, error_message, function_name, line_number):
-	pass
-	# try:
-	# 	with connection.cursor() as cursor:
-	# 		error_message = str(error_message).replace("'", "\'")
-	# 		sql = '''insert into error_log (source_from, error_message, function_name, line_number, add_time)values(
-	# 		"%s","%s","%s",%d,now())''' % (source_from, error_message, function_name, line_number)
-	# 		cursor.execute(sql)
-	# 		connection.commit()
-	# except Exception as e:
-	# 	print('>>>>>', e)
+def save_log(source_from):
+	e_type, e_value, e_traceback = sys.exc_info()
+	error_type = e_type.__name__
+	error_message = str(e_value).replace("'", r"\'")
+	file_name = e_traceback.tb_frame.f_code.co_filename
+	function_name = e_traceback.tb_frame.f_code.co_name
+	line_number = e_traceback.tb_lineno
+	sql = '''insert into error_log (source_from, error_type, error_message, file_name, function_name,
+	line_number, add_time) values ('%s','%s', '%s', '%s', '%s', %d, now())''' % (source_from, 
+	error_type, error_message, file_name,function_name, line_number)
+	with connection.cursor() as cursor:
+		cursor.execute(sql)
+	connection.commit()
 
 def setChrome():
 	'''
@@ -89,7 +99,7 @@ def findRank(page_source, asin):
 		ranks = [[i[0].replace(",", ""), i[1]] for i in ranks]
 		return ranks
 	except Exception as e:
-		save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(asin)
 	try:
 		ranks = page_source.xpath("//table[@id='productDetailsTable']//div[@class='content']/ul/li[@id='SalesRank']//text()")
 		result = []
@@ -109,7 +119,7 @@ def findRank(page_source, asin):
 				ranks.append([i.strip() for i in rank])
 		return ranks
 	except Exception as e:
-		save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(asin)
 	try:
 		ranks = page_source.xpath("//div[@id='detail-bullets']/table//div[@class='content']/ul/li[@id='SalesRank']//text()")
 		result = []
@@ -129,18 +139,18 @@ def findRank(page_source, asin):
 				ranks.append([i.strip() for i in rank])
 		return ranks
 	except Exception as e:
-		save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(asin)
 	return []
 
 def findCatalog(page_source, asin):
 	'''
-	在网页源代码中查找商品所属类别情况
+	在网页源代码中查找商品所属类别情况(已弃用)
 	'''
 	try:
 		catalog = page_source.xpath("//div[@id='wayfinding-breadcrumbs_feature_div']/ul/li/span/a/text()")
 		return [i.strip() for i in catalog]
 	except Exception as e:
-		save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(asin)
 	return []
 
 def findBrand(page_source, asin):
@@ -151,7 +161,7 @@ def findBrand(page_source, asin):
 		brand = page_source.xpath("//a[@id='bylineInfo']/text()")[0]
 		return brand
 	except Exception as e:
-		save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(asin)
 	return ""
 
 def findSellers(page_source, asin):
@@ -169,7 +179,7 @@ def findSellers(page_source, asin):
 			return "FBA"
 		return sellers
 	except Exception as e:
-		save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(asin)
 	return ""
 
 def findSize(page_source, asin):
@@ -184,7 +194,7 @@ def findSize(page_source, asin):
 				size = tr.xpath("./td//text()")[0]
 				return size.strip()
 	except Exception as e:
-		save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(asin)
 	try:
 		trs = page_source.xpath("//table[@id='productDetails_techSpec_section_1']/tbody/tr")
 		for tr in trs:
@@ -193,7 +203,7 @@ def findSize(page_source, asin):
 				size = tr.xpath("./td//text()")[0]
 				return size.strip()
 	except Exception as e:
-		save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(asin)
 	try:
 		trs = page_source.xpath("//table[@id='productDetails_techSpec_section_2']/tbody/tr")
 		for tr in trs:
@@ -202,7 +212,7 @@ def findSize(page_source, asin):
 				size = tr.xpath("./td//text()")[0]
 				return size.strip()
 	except Exception as e:
-		save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(asin)
 	try:
 		trs = page_source.xpath("//table[@class='a-bordered']/tbody/tr")
 		for tr in trs:
@@ -211,7 +221,7 @@ def findSize(page_source, asin):
 				size = tr.xpath("./td[2]/p/text()")[0]
 				return size.strip()
 	except Exception as e:
-		save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(asin)
 	return ""
 
 def findWeight(page_source, asin):
@@ -226,7 +236,7 @@ def findWeight(page_source, asin):
 				weight = tr.xpath("./td//text()")[0]
 				return weight.strip()
 	except Exception as e:
-		save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(asin)
 	try:
 		uls = page_source.xpath("//table[@id='productDetailsTable']//div[@class='content']/ul")
 		for ul in uls:
@@ -236,7 +246,7 @@ def findWeight(page_source, asin):
 				weight = weight.replace("(", "")
 				return weight.strip()
 	except Exception as e:
-		save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(asin)
 	try:
 		trs = page_source.xpath("//table[@id='productDetails_techSpec_section_1']/tbody/tr")
 		for tr in trs:
@@ -245,7 +255,7 @@ def findWeight(page_source, asin):
 				weight = tr.xpath("./td//text()")[0]
 				return weight.strip()
 	except Exception as e:
-		save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(asin)
 	try:
 		trs = page_source.xpath("//table[@id='productDetails_techSpec_section_2']/tbody/tr")
 		for tr in trs:
@@ -254,7 +264,7 @@ def findWeight(page_source, asin):
 				weight = tr.xpath("./td//text()")[0]
 				return weight.strip()
 	except Exception as e:
-		save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(asin)
 	try:
 		trs = page_source.xpath("//table[@class='a-bordered']/tbody/tr")
 		for tr in trs:
@@ -263,7 +273,7 @@ def findWeight(page_source, asin):
 				weight = tr.xpath("./td[2]/p/text()")[0]
 				return weight.strip()
 	except Exception as e:
-		save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(asin)
 	try:
 		lis = page_source.xpath("//div[@id='detail-bullets']/table//div[@class='content']/ul/li")
 		for li in lis:
@@ -272,7 +282,7 @@ def findWeight(page_source, asin):
 				weight = li.xpath("./text()")[0].replace("(", "")
 				return weight.strip()
 	except Exception as e:
-		save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(asin)
 	return ""
 
 def findReleaseData(page_source, asin):
@@ -302,7 +312,7 @@ def findReleaseData(page_source, asin):
 				month, day, year = release_data.strip().replace(",", " ").split()
 				return year+"-"+monthDict[month]+"-"+day
 	except Exception as e:
-		save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(asin)
 	try:
 		trs = page_source.xpath("//table[@id='productDetails_techSpec_section_1']/tbody/tr")
 		for tr in trs:
@@ -312,7 +322,7 @@ def findReleaseData(page_source, asin):
 				month, day, year = release_data.strip().replace(",", " ").split()
 				return year+"-"+monthDict[month]+"-"+day
 	except Exception as e:
-		save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(asin)
 	return ""
 
 def getPageSource(url, mod=0):
@@ -329,17 +339,13 @@ def getPageSource(url, mod=0):
 			locator = (By.XPATH, "//div[@id='prodDetails']")
 			WebDriverWait(driver, 6, 1).until(EC.presence_of_element_located(locator))
 	except Exception as e:
-		save_log(url, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(url)
 	try:
 		element = driver.find_element_by_xpath("//a[contains(text(), 'Try different image')]")
 		ActionChains(driver).click(element).perform()
 		return getPageSource(url, mod)
 	except Exception as e:
 		pass
-	end_time = time.time()
-	with open("time.txt", "a") as f:
-		f.write(str(end_time-start_time)+"\n")
-	# time.sleep(1)
 	page_source = driver.page_source
 	page_source = etree.HTML(page_source)
 	return page_source
@@ -356,9 +362,15 @@ def fullProductInfo(page_source, asin):
 	print('销售方式:', sellers)
 	size = findSize(page_source, asin)
 	size = size.replace("'", r"\'")
+	if "inches" in size:
+		size = " x ".join([str(round(float(i.strip())*2.54, 2)) for i in size.replace("inches", "").split("x")]) + " 厘米"
 	print('尺寸:', size)
 	weight = findWeight(page_source, asin)
 	weight = weight.replace("'", r"\'")
+	if "ounces" in weight:
+		weight = str(round(float(weight.replace("ounces", "").strip())*28.35, 2)) + " 克"
+	if "pounds" in weight:
+		weight = str(round(float(weight.replace("pounds", "").strip())*453.59, 2)) + " 克"
 	print('重量:', weight)
 	release_data = findReleaseData(page_source, asin)
 	if release_data:
@@ -383,8 +395,7 @@ def fullProductInfo(page_source, asin):
 				add_time)values('%s','%s',%d,now())''' % (asin, rank[1], int(rank[0]))
 				cursor.execute(sql)
 	except Exception as e:
-		print("^^^^^^", e)
-		save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(asin)
 	connection.commit()
 
 def crwalList(page_source, catalog):
@@ -401,20 +412,20 @@ def crwalList(page_source, catalog):
 			asin = words[words.index("dp") + 1]
 			image = p.xpath(".//img/@src")[0]
 		except Exception as e:
-			save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+			save_log(asin)
 		try:
 			review_score = p.xpath(".//div[contains(@class, 'a-icon-row')]/a[1]/@title")[0]
 			review_score = float(review_score.split("out")[0])
 		except Exception as e:
 			review_score = 0
-			save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+			save_log(asin)
 		try:
 			review_number = p.xpath(".//div[contains(@class, 'a-icon-row')]/a[2]/text()")[0]
 			review_number = review_number.replace(",", "")
 			review_number = int(review_number)
 		except Exception as e:
 			review_number = 0
-			save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+			save_log(asin)
 		try:
 			price = p.xpath(".//span[@class='p13n-sc-price']/text()")
 			if len(price) > 1:
@@ -424,12 +435,12 @@ def crwalList(page_source, catalog):
 			price = float(price[0].replace(",", "").strip()[1:])
 		except Exception as e:
 			price = -1
-			save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+			save_log(asin)
 		try:
 			title = p.xpath(".//div[@class='p13n-sc-truncated']/@title")[0]
 		except Exception as e:
 			title = p.xpath(".//div[@class='p13n-sc-truncated']/text()")[0]
-			save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+			save_log(asin)
 		title = title.replace("'", r"\'")
 		catalog = [i.replace("'", r"\'") for i in catalog]
 		try:
@@ -443,7 +454,7 @@ def crwalList(page_source, catalog):
 					address, title,image, review_number, review_score, price, multiple, len(catalog), ">".join(catalog))
 					cursor.execute(sql)
 		except Exception as e:
-			save_log(asin, e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+			save_log(asin)
 		connection.commit()
 
 def crawCatalog(url, max_level=2, now_level=0):
@@ -476,35 +487,53 @@ def crawCatalog(url, max_level=2, now_level=0):
 	for url in next_catalog_urls:
 		crawCatalog(url, max_level, now_level=now_level+1)
 
+def download(url):
+	headers = {
+		"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+		"Accept-encoding": "gzip, deflate, br",
+		"Accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
+		"Cache-control": "max-age=0",
+		"Sec-fetch-dest": "document",
+		"Sec-fetch-mode": "navigate",
+		"Sec-fetch-site": "none",
+		"Sec-fetch-user": "?1",
+		"Upgrade-insecure-requests": "1",
+		"User-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36 Edg/83.0.478.45"
+	}
+	file_name = url.split("/")[-1]
+	file_name = os.path.join(imageFolder, file_name)
+	if os.path.exists(file_name):
+		return
+	response = requests.get(url, headers=headers)
+	with open(file_name, "wb") as f:
+		for chunk in response.iter_content(chunk_size=128):
+			f.write(chunk)
+
 def downloadImage():
 	'''
 	根据商品的图片链接下载保存到指定文件夹
 	'''
-	try:
-		with connection.cursor() as cursor:
-			sql = "select name, link from image where download is NULL limit 10"
-			cursor.execute(sql)
-			result = cursor.fetchall()
-			for image in result:
-				print(image[1])
-				try:
-					response = requests.get(image[1], timeout=5)
-				except Exception as e:
-					continue
-				print("get response")
-				with open(imageFolder+image[0], "wb") as f:
-					for chunk in response.iter_content(chunk_size=128):
-						f.write(chunk)
-				print("downloadImage")
-				sql = "update image set download=1 where name='%s'" % image[0]
-				cursor.execute(sql)
-				print("save on db")
-			connection.commit()
-	except Exception as e:
-		print(e)
-		save_log(image[0], e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+	if not os.path.exists(imageFolder):
+		os.mkdir(imageFolder)
+	with connection.cursor() as cursor:
+		sql = "select image from product"
+		cursor.execute(sql)
+		images = cursor.fetchall()
+	pool = ThreadPoolExecutor(max_workers=max_download_thread)
+	for image in images:
+		pool.submit(download, image[0])
+	pool.shutdown()
 
 def resultOfHTML():
+	bigCatalog = ['Amazon Devices & Accessories', 'Amazon Launchpad', 'Amazon Pantry', 'Appliances',
+	'Apps & Games', 'Arts, Crafts & Sewing', 'Audible Books & Originals', 'Automotive', 'Baby',
+	'Beauty & Personal Care', 'Books', 'CDs & Vinyl', 'Camera & Photo', 'Cell Phones & Accessories',
+	'Clothing, Shoes & Jewelry', 'Collectible Currencies', 'Computers & Accessories', 'Digital Music',
+	'Electronics', 'Entertainment Collectibles', 'Gift Cards', 'Grocery & Gourmet Food',
+	'Handmade Products', 'Health & Household', 'Home & Kitchen', 'Industrial & Scientific',
+	'Kindle Store', 'Kitchen & Dining', 'Magazine Subscriptions', 'Movies & TV', 'Musical Instruments',
+	'Office Products', 'Patio, Lawn & Garden', 'Pet Supplies', 'Software', 'Sports & Outdoors',
+	'Sports Collectibles', 'Tools & Home Improvement', 'Toys & Games', 'Video Games']
 	with connection.cursor() as cursor:
 		sql = '''select image,asin,review_number,review_score,price,level,catalog,title,brand,sellers,
 		size,weight,address,release_data from product where fulled=1 limit 50'''
@@ -531,8 +560,13 @@ def keepa():
 	try:
 		for i in result:
 			driver.get(i[0])
-			time.sleep(5)
+			driver.execute_script("window.scrollBy(0, 1000)")
+			locator = (By.XPATH, "//div[@id='keepaContainer']")
+			WebDriverWait(driver, 6, 1).until(EC.presence_of_element_located(locator))
 			driver.switch_to.frame('keepa')
+			locator = (By.XPATH, "//div[@id='priceHistory']")
+			WebDriverWait(driver, 15, 1).until(EC.presence_of_element_located(locator))
+			time.sleep(1)
 			element = driver.find_element_by_xpath("//table[@class='legendTable']/tbody/tr[last()]/td[2]/table/tbody/tr[last()]/td[2]")
 			days = int(element.text.split("(")[1].split("天")[0].strip())
 			release_data = (datetime.datetime.now() + datetime.timedelta(days=-days)).strftime("%Y-%m-%d")
@@ -542,7 +576,7 @@ def keepa():
 				cursor.execute(sql)
 			connection.commit()
 	except Exception as e:
-		save_log(i[1], e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(i[1])
 
 def work1(urls):
 	'''
@@ -565,8 +599,7 @@ def work2():
 				page_source = getPageSource(i[1], mod=1)
 				fullProductInfo(page_source, i[0])
 	except Exception as e:
-		print("======", e)
-		save_log(i[0], e, sys._getframe().f_code.co_name, sys._getframe().f_lineno)
+		save_log(i[0])
 
 
 if __name__ == '__main__':
@@ -575,8 +608,8 @@ if __name__ == '__main__':
 	]
 	url = "https://www.amazon.com/Best-Sellers/zgbs/wireless/ref=zg_bs_nav_0"
 	# work1(urls)
-	work2()
-	# keepa()
+	# work2()
+	keepa()
 	# crawCatalog(url)
 	# resultOfHTML()
 	# downloadImage()
