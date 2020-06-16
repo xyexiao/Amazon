@@ -4,6 +4,7 @@ image			图片
 review_number	评论人数
 review_score	评论分数
 price			价格
+multiple		是否多样
 level			类目层级
 catalog			类别目录
 title			标题
@@ -17,26 +18,20 @@ add_time		数据添加日期
 update_time		数据更新日期
 fulled			是否填完
 
-类别表：
-name 			类别名称
-parent_name		父类别名称
-
 排名表：
 asin			商品编号
 rank_number		排名数
 rank_name		排名类别
 add_time		添加时间
 
-图片表：
-link			图片链接
-name 			图片名称
-
 日志表：
+source_from		商品asin或url
+error_type		错误类型
 error_message	错误信息
+file_name		文件名
 function_name	方法名
 line_number		行号
 add_time		添加时间
-asin			商品编号
 
 
 
