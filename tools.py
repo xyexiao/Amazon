@@ -22,10 +22,13 @@ def fulledIsNULL():
 		charset = "utf8mb4"
 	)
 	with connection.cursor() as cursor:
-		sql = "select asin, address from product where fulled is NULL"
+		sql = "select link, name from image"
 		cursor.execute(sql)
 		result = cursor.fetchall()
-		print(result)
+		for i in result:
+			sql = "update product set image='%s' where image='%s'" % (i[0], i[1])
+			cursor.execute(sql)
+		connection.commit()
 
 def setChrome():
 	driver = webdriver.Chrome()
@@ -48,10 +51,54 @@ def test():
 	# f = sys._getframe().f_code.co_name
 	# l = sys._getframe().f_lineno
 	# print(f, l)
-	log('sssss',sys._getframe().f_code.co_name,sys._getframe().f_lineno)
+	try:
+		int('1.02')
+	except Exception as e:
+		print(str(e))
+		print(type(str(e)))
+	# log('sssss',sys._getframe().f_code.co_name,sys._getframe().f_lineno)
 
-def log(e, f = sys._getframe().f_code.co_name, l = sys._getframe().f_lineno):
-	print(e, f, l)
+def log():
+	try:
+		for i in range(10):
+			print(i)
+			if i == 5:
+				raise Exception("yyy")
+	except Exception as e:
+		print(i, e)
+
+def writeExcel():
+
+		import xlsxwriter
+		 
+		 
+		# 创建一个新Excel文件并添加一个工作表。
+		workbook = xlsxwriter.Workbook('images.xlsx')
+		worksheet = workbook.add_worksheet()
+		 
+		# 加宽第一列使文本更清晰。
+		worksheet.set_column('A:A', 30)
+		 
+		# 插入一张图片。
+		worksheet.write('A2', '向单元格插入一张图片：')
+		worksheet.insert_image('B2', '1.jpg')
+		 
+		# 插入一张位偏移图片。
+		worksheet.write('A12', '插入一张位偏移图片：')
+		worksheet.insert_image('B12', '1.jpg', {'x_offset': 15, 'y_offset': 10})
+		 
+		# 插入一张缩放了的图片。
+		worksheet.write('A23', '插入一张缩放了的图片：')
+		worksheet.insert_image('B23', '1.jpg', {'x_scale': 0.5, 'y_scale': 0.5})
+		 
+		workbook.close()
+# sys.setrecursionlimit(5)
+def demo(n=0, m=2):
+	if n == m:
+		return
+	for i in range(3):
+		print(n, i)
+		demo(n=n+1)
 
 if __name__ == '__main__':
 	# crawPageSource('https://www.amazon.com/2020-American-Certificate-Authenticity-Uncirculated/dp/B087D7NTG2/ref=zg_bs_coins_2?ie=UTF8&language=en_US&psc=1&refRID=KQHB391G1KJF3MW13Q7Q')
@@ -65,6 +112,9 @@ if __name__ == '__main__':
 	# print(r)
 
 #https://www.amazon.com/Best-Sellers-Computers-Accessories-Streaming-Media-Players/zgbs/pc/13447451/ref=zg_bs_nav_pc_3_537316
-
-
-	test()
+	# writeExcel()
+	# demo()
+	fulledIsNULL()
+	# print(sys._getframe().f_lineno)
+	# print(type(sys._getframe().f_lineno))
+	# log()
