@@ -1,0 +1,38 @@
+<form name="setup1" action="/" method="post">
+类别的URL: <input type="text" name="url">
+爬取的层数: <input type="text" name="number" value="2">
+<input type="text" name="setup" value="1" style="visibility: hidden;">
+<input type="submit" value="商品列表爬取"
+{% if status_data.work_statu != "商品列表爬取" and status_data.work_statu != "" %} disabled="true"{% endif %}>
+</form>
+
+<form name="setup2" action="/" method="post">
+<input type="text" name="setup" value="2" style="visibility: hidden;">
+<input type="submit" value="单个商品爬取"  
+{% if status_data.work_statu != "单个商品爬取" %} disabled="true"{% endif %}>
+</form>
+
+<form name="setup3" action="/" method="post">
+<input type="text" name="setup" value="3" style="visibility: hidden;">
+<input type="submit" value="keepa补充信息"
+{% if status_data.work_statu != "keepa补充信息" %} disabled="true"{% endif %}>
+</form>
+
+<form name="setup4" action="/" method="post">
+<input type="text" name="setup" value="4" style="visibility: hidden;">
+<input type="submit" value="图片下载"
+{% if status_data.work_statu != "图片下载" %} disabled="true"{% endif %}>
+</form>
+
+<form name="setup5" action="/" method="post">
+<input type="text" name="setup" value="5" style="visibility: hidden;">
+<input type="submit" value="Excel下载"
+{% if status_data.work_statu != "Excel下载" %} disabled="true"{% endif %}>
+</form>
+
+{% if status_data.start_time %}
+<p>本次任务开始于：{{ status_data.start_time }}</p>
+<p>当前阶段：{{ status_data.work_statu }}</p>
+<p>商品数：{{ status_data.crawl_product_number }}</p>
+{% endif %}
+

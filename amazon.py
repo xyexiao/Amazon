@@ -15,27 +15,36 @@ import os
 
 
 # 数据库连接和参数
-connection = pymysql.connect(
-	host = "localhost",
-	user = "root",
-	password = "root1234",
-	db = "amazon",
-	charset = "utf8mb4"
-)
+def setDB():
+	connection = pymysql.connect(
+		host = "localhost",
+		user = "root",
+		password = "root1234",
+		db = "amazon",
+		charset = "utf8mb4"
+	)
+	return connection
+connection = setDB()
 # 图片保存文件夹的名称
 imageFolder = "image"
 # 线程池最大线程数
 max_download_thread = 10
 # 启动个人配置的Chrome浏览器
-def setChrome():
+def createDriver():
 	option = webdriver.ChromeOptions()
 	option.add_argument("--user-data-dir="+
 	r"C:/Users/ASUS/AppData/Local/Google/Chrome/User Data/")
 	option.add_argument("--ignore-certificate-errors")
 	driver = webdriver.Chrome(chrome_options=option)
 	return driver
+# driver = setChrome()
 
-driver = setChrome()
+def test1():
+	sql = "select count(*) from product"
+	with connection.cursor() as cursor:
+		cursor.execute(sql)
+		result = cursor.fetchone()
+	return result
 
 def save_log(source_from):
 	e_type, e_value, e_traceback = sys.exc_info()
@@ -325,7 +334,7 @@ def findReleaseData(page_source, asin):
 		save_log(asin)
 	return ""
 
-def getPageSource(url, mod=0):
+def getPageSource(driver, url, mod=0):
 	'''
 	获取指定url链接页面的源代码
 	'''
@@ -343,7 +352,7 @@ def getPageSource(url, mod=0):
 	try:
 		element = driver.find_element_by_xpath("//a[contains(text(), 'Try different image')]")
 		ActionChains(driver).click(element).perform()
-		return getPageSource(url, mod)
+		return getPageSource(driver, url, mod)
 	except Exception as e:
 		pass
 	page_source = driver.page_source
@@ -457,13 +466,13 @@ def crwalList(page_source, catalog):
 			save_log(asin)
 		connection.commit()
 
-def crawCatalog(url, max_level=2, now_level=0):
+def crawCatalog(driver, url, max_level=2, now_level=0):
 	'''
 	递归的爬取类别目录和目录商品
 	'''
 	if max_level == now_level:
 		return
-	page_source = getPageSource(url)
+	page_source = getPageSource(driver, url)
 	catalog = []
 	ul = page_source.xpath("//ul[@id='zg_browseRoot']")[0]
 	while True:
@@ -479,13 +488,13 @@ def crawCatalog(url, max_level=2, now_level=0):
 	print(catalog)
 	crwalList(page_source, catalog)
 	next_page_url = page_source.xpath("//li[@class='a-last']/a/@href")[0]
-	page_source = getPageSource(next_page_url)
+	page_source = getPageSource(driver, next_page_url)
 	crwalList(page_source, catalog)
 	if select_span:
 		return
 	next_catalog_urls = ul.xpath("./li/a/@href")
 	for url in next_catalog_urls:
-		crawCatalog(url, max_level, now_level=now_level+1)
+		crawCatalog(driver, url, max_level, now_level=now_level+1)
 
 def download(url):
 	headers = {
@@ -549,7 +558,7 @@ def resultOfHTML():
 				target="_blank">详情</a></td><td>%s</td></tr>''' % p)
 			f.write("</tbody></table>")
 
-def keepa():
+def keepa(driver):
 	'''
 	首先查询数据库中商品上架日期为空的商品，再通过keepa谷歌浏览器插件获取商品的上架日期，更新数据库
 	'''
@@ -578,15 +587,15 @@ def keepa():
 	except Exception as e:
 		save_log(i[1])
 
-def work1(urls):
+def work1(driver, urls):
 	'''
 	根据指定的url列表获取商品信息
 	'''
 	for url in urls:
-		page_source = getPageSource(url)
+		page_source = getPageSource(driver, url)
 		crwalList(page_source)
 
-def work2():
+def work2(driver):
 	'''
 	将product表中fulled字段为NULL的数据信息补充完整
 	'''
@@ -596,7 +605,7 @@ def work2():
 			cursor.execute(sql)
 			result = cursor.fetchall()
 			for i in result:
-				page_source = getPageSource(i[1], mod=1)
+				page_source = getPageSource(driver, i[1], mod=1)
 				fullProductInfo(page_source, i[0])
 	except Exception as e:
 		save_log(i[0])
@@ -607,9 +616,10 @@ if __name__ == '__main__':
 	"https://www.amazon.com/Best-Sellers-Electronics-TV-Accessories/zgbs/electronics/3230976011/ref=zg_bs_pg_2?_encoding=UTF8&pg=2"
 	]
 	url = "https://www.amazon.com/Best-Sellers/zgbs/wireless/ref=zg_bs_nav_0"
-	# work1(urls)
-	# work2()
-	keepa()
-	# crawCatalog(url)
+	# driver = setChrome()
+	# work1(driver, urls)
+	# work2(driver)
+	keepa(driver)
+	crawCatalog(driver, url)
 	# resultOfHTML()
 	# downloadImage()
