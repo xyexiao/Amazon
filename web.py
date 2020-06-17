@@ -28,7 +28,7 @@ def set_status(start_time,work_statu,crawl_product_number):
 	with open("status.json", "w") as f:
 		json.dump(status_data, f)
 
-set_status("2020-06-17 14:18","Excel生成",0)
+set_status("2020-06-17 16:20","keepa补充信息",0)
 
 def setup1(url, number):
 	try:

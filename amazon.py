@@ -341,6 +341,21 @@ def getPageSource(driver, url, mod=0):
 		if mod == 1:
 			locator = (By.XPATH, "//div[@id='prodDetails']")
 			WebDriverWait(driver, 6, 1).until(EC.presence_of_element_located(locator))
+		if mod == 2:
+			body_height = driver.find_element_by_xpath("//body").size["height"]
+			while 1:
+				driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+				time.sleep(1)
+				new_body_height = driver.find_element_by_xpath("//body").size["height"]
+				if new_body_height == body_height:
+					break
+				body_height = new_body_height
+			while 1:
+				products = driver.find_elements_by_xpath("//div[@class='c011']")
+				print(">>>>>>>",len(products))
+				if len(products) == 50:
+					break
+				time.sleep(2)
 	except Exception as e:
 		save_log(url)
 	try:
@@ -350,7 +365,7 @@ def getPageSource(driver, url, mod=0):
 	except Exception as e:
 		pass
 	page_source = driver.page_source
-	page_source = etree.HTML(page_source)
+	# page_source = etree.HTML(page_source)
 	return page_source
 
 def fullProductInfo(page_source, asin):
@@ -442,6 +457,13 @@ def crwalList(page_source, catalog):
 		except Exception as e:
 			save_log(asin)
 		connection.commit()
+
+def crawByQuickView(page_source, catalog):
+	'''
+	获取商品列表中商品的链接、asin、图片链接、评论分数、评论人数、价格、标题、品牌、销售方式、尺寸、重量、上架日期和排名，
+	先根据asin查询product表中是否已存在此商品，再将不存在的商品信息保存到product表
+	'''
+	pass
 
 def crawCatalog(driver, url, max_level=2, now_level=0):
 	'''
@@ -597,7 +619,7 @@ def keepa(driver):
 		for i in result:
 			try:
 				driver.get(i[0])
-				driver.execute_script("window.scrollBy(0, 1000)")
+				driver.execute_script("window.scrollBy(0, 700)")
 				locator = (By.XPATH, "//div[@id='keepaContainer']")
 				WebDriverWait(driver, 15, 1).until(EC.presence_of_element_located(locator))
 				driver.switch_to.frame('keepa')
@@ -643,12 +665,15 @@ if __name__ == '__main__':
 	urls = [
 	"https://www.amazon.com/Best-Sellers-Electronics-TV-Accessories/zgbs/electronics/3230976011/ref=zg_bs_pg_2?_encoding=UTF8&pg=2"
 	]
-	url = "https://www.amazon.com/Best-Sellers/zgbs/wireless/ref=zg_bs_nav_0"
-	# driver = setChrome()
+	url = "https://www.amazon.com/Best-Sellers-Health-Personal-Care/zgbs/hpc/ref=zg_bs_nav_0"
+	driver = createDriver()
+	p = getPageSource(driver,url,mod=2)
+	with open("D:/k.txt", "w", encoding="utf-8") as f:
+		f.write(p)
 	# work1(driver, urls)
 	# work2(driver)
 	# keepa(driver)
 	# crawCatalog(driver, url)
 	# resultOfHTML()
 	# downloadImage()
-	resultOfExcel(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
+	# resultOfExcel(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
