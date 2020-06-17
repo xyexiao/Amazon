@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from selenium import webdriver
 from lxml import etree
 import pymysql
+import xlsxwriter
 import traceback
 import requests
 import datetime
@@ -39,18 +40,11 @@ def createDriver():
 	return driver
 # driver = setChrome()
 
-def test1():
-	sql = "select count(*) from product"
-	with connection.cursor() as cursor:
-		cursor.execute(sql)
-		result = cursor.fetchone()
-	return result
-
 def save_log(source_from):
 	e_type, e_value, e_traceback = sys.exc_info()
 	error_type = e_type.__name__
 	error_message = str(e_value).replace("'", r"\'")
-	file_name = e_traceback.tb_frame.f_code.co_filename
+	file_name = e_traceback.tb_frame.f_code.co_filename.replace("\\", r"\\")
 	function_name = e_traceback.tb_frame.f_code.co_name
 	line_number = e_traceback.tb_lineno
 	sql = '''insert into error_log (source_from, error_type, error_message, file_name, function_name,
@@ -401,7 +395,7 @@ def fullProductInfo(page_source, asin):
 			cursor.execute(sql)
 			for rank in ranks:
 				sql = '''insert into ranking(asin, rank_name, rank_number,
-				add_time)values('%s','%s',%d,now())''' % (asin, rank[1], int(rank[0]))
+				add_time)values('%s','%s',%d,now())''' % (asin, rank[1].replace("'", r"\'"), int(rank[0]))
 				cursor.execute(sql)
 	except Exception as e:
 		save_log(asin)
@@ -413,45 +407,28 @@ def crwalList(page_source, catalog):
 	先根据asin查询product表中是否已存在此商品，再将不存在的商品信息保存到product表
 	'''
 	product_list = page_source.xpath("//ol[@id='zg-ordered-list']/li")
+	catalog = [i.replace("'", r"\'") for i in catalog]
 	for i, p in enumerate(product_list):
-		try:
-			address = p.xpath(".//span[contains(@class, 'zg-item')]/a[@class='a-link-normal']/@href")[0]
-			address = "https://www.amazon.com" + address
+		address = p.xpath(".//span[contains(@class, 'zg-item')]/a[@class='a-link-normal']/@href")
+		if address:
+			address = "https://www.amazon.com" + address[0]
 			words = address.split("/")
 			asin = words[words.index("dp") + 1]
-			image = p.xpath(".//img/@src")[0]
-		except Exception as e:
-			save_log(asin)
-		try:
-			review_score = p.xpath(".//div[contains(@class, 'a-icon-row')]/a[1]/@title")[0]
-			review_score = float(review_score.split("out")[0])
-		except Exception as e:
-			review_score = 0
-			save_log(asin)
-		try:
-			review_number = p.xpath(".//div[contains(@class, 'a-icon-row')]/a[2]/text()")[0]
-			review_number = review_number.replace(",", "")
-			review_number = int(review_number)
-		except Exception as e:
-			review_number = 0
-			save_log(asin)
-		try:
-			price = p.xpath(".//span[@class='p13n-sc-price']/text()")
-			if len(price) > 1:
-				multiple = 1
-			else:
-				multiple = 0
-			price = float(price[0].replace(",", "").strip()[1:])
-		except Exception as e:
-			price = -1
-			save_log(asin)
-		try:
-			title = p.xpath(".//div[@class='p13n-sc-truncated']/@title")[0]
-		except Exception as e:
-			title = p.xpath(".//div[@class='p13n-sc-truncated']/text()")[0]
-			save_log(asin)
+		else:
+			address = asin = ""
+		image = p.xpath(".//img/@src")
+		image = image[0] if image else ""
+		review_score = p.xpath(".//div[contains(@class, 'a-icon-row')]/a[1]/@title")
+		review_score = float(review_score[0].split("out")[0]) if review_score else 0
+		review_number = p.xpath(".//div[contains(@class, 'a-icon-row')]/a[2]/text()")
+		review_number = int(review_number[0].replace(",", "")) if review_number else 0
+		price = p.xpath(".//span[@class='p13n-sc-price']/text()")
+		multiple = 1 if len(price)>1 else 0
+		price = float(price[0].replace(",", "").strip()[1:]) if price else 0
+		title = p.xpath(".//div[@class='p13n-sc-truncated']/@title")
+		title = title[0] if title else p.xpath(".//div[@class='p13n-sc-truncated']/text()")
+		title = title[0] if title else ""
 		title = title.replace("'", r"\'")
-		catalog = [i.replace("'", r"\'") for i in catalog]
 		try:
 			with connection.cursor() as cursor:
 				sql = '''select asin from product where asin='%s' ''' % asin
@@ -549,14 +526,65 @@ def resultOfHTML():
 		cursor.execute(sql)
 		result = cursor.fetchall()
 		with open("%s.html"%datetime.datetime.now().strftime("%Y-%m-%d"), "w", encoding="utf-8") as f:
-			f.write('''<table border="1" cellpadding="0" cellspacing="0"><thead><td>图片</td><td>编号</td><td>评论人数</td><td>评论分数</td>
-			<td>价格</td><td>类目层级</td><td>类别目录</td><td>标题</td><td>品牌名称</td><td>销售方式</td>
-			<td>尺寸</td><td>重量</td><td>页面地址</td><td>上架日期</td></thead><tbody>''')
+			f.write('''<table border="1" cellpadding="0" cellspacing="0"><thead><td>图片</td><td>编号</td>
+			<td>评论人数</td><td>评论分数</td><td>价格</td><td>类目层级</td><td>类别目录</td><td>标题</td>
+			<td>品牌名称</td><td>销售方式</td><td>尺寸</td><td>重量</td><td>页面地址</td><td>上架日期</td>
+			</thead><tbody>''')
 			for p in result:
 				f.write('''<tr><td><img src="%s"></td><td>%s</td><td>%d</td><td>%.1f</td><td>%.2f</td><td>%d</td>
 				<td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td><a href="%s"
 				target="_blank">详情</a></td><td>%s</td></tr>''' % p)
 			f.write("</tbody></table>")
+
+def resultOfExcel(start_time):
+	with connection.cursor() as cursor:
+		sql = '''select image,asin,review_number,review_score,price,level,catalog,title,brand,sellers,
+		size,weight,address,release_data from product where update_time>"%s" ''' % start_time
+		cursor.execute(sql)
+		result = cursor.fetchall()
+		workbook = xlsxwriter.Workbook('%s.xlsx'%datetime.datetime.strptime(start_time, "%Y-%m-%d %H:%M").strftime("%Y-%m-%d_%H_%M"))
+		worksheet = workbook.add_worksheet()
+		worksheet.set_column('A:A', 27.8)
+		worksheet.set_column('B:B', 15)
+		worksheet.set_column('G:G', 30)
+		worksheet.set_column('H:H', 30)
+		worksheet.set_column('I:I', 17)
+		worksheet.set_column('K:K', 28)
+		worksheet.set_column('L:L', 10)
+		fromat1 = workbook.add_format({"text_wrap":1})
+		fromat2 = workbook.add_format({"num_format":"yyyy-mm-dd"})
+		worksheet.write("A1", "图片")
+		worksheet.write("B1", "编号")
+		worksheet.write("C1", "评论人数")
+		worksheet.write("D1", "评论分数")
+		worksheet.write("E1", "价格")
+		worksheet.write("F1", "类目层级")
+		worksheet.write("G1", "类别目录")
+		worksheet.write("H1", "标题")
+		worksheet.write("I1", "品牌名称")
+		worksheet.write("J1", "销售方式")
+		worksheet.write("K1", "尺寸")
+		worksheet.write("L1", "重量")
+		worksheet.write("M1", "页面地址")
+		worksheet.write("N1", "上架日期")
+		for i, p in enumerate(result):
+			worksheet.set_row(i+1, 152)
+			worksheet.insert_image('A'+str(i+2), os.path.join(imageFolder, p[0].split("/")[-1]))
+			worksheet.write('B'+str(i+2), p[1])
+			worksheet.write('C'+str(i+2), p[2])
+			worksheet.write('D'+str(i+2), p[3])
+			worksheet.write('E'+str(i+2), p[4])
+			worksheet.write('F'+str(i+2), p[5])
+			worksheet.write('G'+str(i+2), p[6], fromat1)
+			worksheet.write('H'+str(i+2), p[7], fromat1)
+			worksheet.write('I'+str(i+2), p[8])
+			worksheet.write('J'+str(i+2), p[9])
+			worksheet.write('K'+str(i+2), p[10])
+			worksheet.write('L'+str(i+2), p[11])
+			worksheet.write('M'+str(i+2), p[12], fromat1)
+			worksheet.write('N'+str(i+2), str(p[13]))
+		workbook.close()
+
 
 def keepa(driver):
 	'''
@@ -566,26 +594,26 @@ def keepa(driver):
 		sql = "select address, asin from product where release_data is NULL"
 		cursor.execute(sql)
 		result = cursor.fetchall()
-	try:
 		for i in result:
-			driver.get(i[0])
-			driver.execute_script("window.scrollBy(0, 1000)")
-			locator = (By.XPATH, "//div[@id='keepaContainer']")
-			WebDriverWait(driver, 6, 1).until(EC.presence_of_element_located(locator))
-			driver.switch_to.frame('keepa')
-			locator = (By.XPATH, "//div[@id='priceHistory']")
-			WebDriverWait(driver, 15, 1).until(EC.presence_of_element_located(locator))
-			time.sleep(1)
-			element = driver.find_element_by_xpath("//table[@class='legendTable']/tbody/tr[last()]/td[2]/table/tbody/tr[last()]/td[2]")
-			days = int(element.text.split("(")[1].split("天")[0].strip())
-			release_data = (datetime.datetime.now() + datetime.timedelta(days=-days)).strftime("%Y-%m-%d")
-			print(i[1], release_data)
-			with connection.cursor() as cursor:
-				sql = "update product set release_data='%s' where asin='%s'" % (release_data, i[1])
-				cursor.execute(sql)
-			connection.commit()
-	except Exception as e:
-		save_log(i[1])
+			try:
+				driver.get(i[0])
+				driver.execute_script("window.scrollBy(0, 1000)")
+				locator = (By.XPATH, "//div[@id='keepaContainer']")
+				WebDriverWait(driver, 15, 1).until(EC.presence_of_element_located(locator))
+				driver.switch_to.frame('keepa')
+				locator = (By.XPATH, "//div[@id='priceHistory']")
+				WebDriverWait(driver, 15, 1).until(EC.presence_of_element_located(locator))
+				time.sleep(1)
+				element = driver.find_element_by_xpath("//table[@class='legendTable']/tbody/tr[last()]/td[2]/table/tbody/tr[last()]/td[2]")
+				days = int(element.text.split("(")[1].split("天")[0].strip())
+				release_data = (datetime.datetime.now() + datetime.timedelta(days=-days)).strftime("%Y-%m-%d")
+				print(i[1], release_data)
+				with connection.cursor() as cursor:
+					sql = "update product set release_data='%s' where asin='%s'" % (release_data, i[1])
+					cursor.execute(sql)
+				connection.commit()
+			except Exception as e:
+				save_log(i[1])
 
 def work1(driver, urls):
 	'''
@@ -619,7 +647,8 @@ if __name__ == '__main__':
 	# driver = setChrome()
 	# work1(driver, urls)
 	# work2(driver)
-	keepa(driver)
-	crawCatalog(driver, url)
+	# keepa(driver)
+	# crawCatalog(driver, url)
 	# resultOfHTML()
 	# downloadImage()
+	resultOfExcel(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))

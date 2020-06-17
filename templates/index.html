@@ -3,7 +3,7 @@
 爬取的层数: <input type="text" name="number" value="2">
 <input type="text" name="setup" value="1" style="visibility: hidden;">
 <input type="submit" value="商品列表爬取"
-{% if status_data.work_statu != "商品列表爬取" and status_data.work_statu != "" %} disabled="true"{% endif %}>
+{% if status_data.work_statu != "" %} disabled="true"{% endif %}>
 </form>
 
 <form name="setup2" action="/" method="post">
@@ -26,8 +26,8 @@
 
 <form name="setup5" action="/" method="post">
 <input type="text" name="setup" value="5" style="visibility: hidden;">
-<input type="submit" value="Excel下载"
-{% if status_data.work_statu != "Excel下载" %} disabled="true"{% endif %}>
+<input type="submit" value="Excel生成"
+{% if status_data.work_statu != "Excel生成" %} disabled="true"{% endif %}>
 </form>
 
 {% if status_data.start_time %}
@@ -35,4 +35,3 @@
 <p>当前阶段：{{ status_data.work_statu }}</p>
 <p>商品数：{{ status_data.crawl_product_number }}</p>
 {% endif %}
-
