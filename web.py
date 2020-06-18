@@ -28,7 +28,7 @@ def set_status(start_time,work_statu,crawl_product_number):
 	with open("status.json", "w") as f:
 		json.dump(status_data, f)
 
-set_status("2020-06-17 16:20","keepa补充信息",0)
+set_status("","",0)
 
 def setup1(url, number):
 	try:
@@ -112,6 +112,62 @@ def index():
 				return send_from_directory("", file_name,as_attachment=True)
 			except Exception as e:
 				save_log("web")
+		if setup == 9:
+			review_number_min = request.form.get("review_number_min", "")
+			review_number_max = request.form.get("review_number_max", "")
+			review_number_sql = " review_number>"+review_number_min if review_number_min else ""
+			review_number_sql = " review_number<"+review_number_max if review_number_max else review_number_sql
+			review_number_sql = " review_number between %s and %s "%(review_number_min,
+			review_number_max) if (review_number_min and review_number_max) else review_number_sql
+			review_score_min = request.form.get("review_score_min", "")
+			review_score_max = request.form.get("review_score_max", "")
+			review_score_sql = " review_score>"+review_score_min if review_score_min else ""
+			review_score_sql = " review_score<"+review_score_max if review_score_max else review_score_sql
+			review_score_sql = " review_score between %s and %s "%(review_score_min,
+			review_score_max) if (review_score_min and review_score_max) else review_score_sql
+			price_min = request.form.get("price_min", "")
+			price_max = request.form.get("price_max", "")
+			price_sql = " price>"+price_min if price_min else ""
+			price_sql = " price<"+price_max if price_max else price_sql
+			price_sql = " price between %s and %s "%(price_min,
+			price_max) if (price_min and price_max) else price_sql
+			release_data_min = request.form.get("release_data_min", "")
+			release_data_max = request.form.get("release_data_max", "")
+			release_data_sql = " release_data>'%s'"%release_data_min if release_data_min else ""
+			release_data_sql = " release_data<'%s'"%release_data_max if release_data_max else release_data_sql
+			release_data_sql = " release_data between '%s' and '%s' "%(release_data_min,
+			release_data_max) if (release_data_min and release_data_max) else release_data_sql
+			sellers = request.form.getlist("sellers")
+			sellers = ["'%s'"%i for i in sellers]
+			sellers_sql = " sellers in ("+",".join(sellers)+")" if len(sellers)>1 else ""
+			sellers_sql = " sellers=%s"%sellers[0] if len(sellers)==1 else sellers_sql
+			key_word = request.form.get("key_word", "")
+			key_word_sql = " (catalog like '%%%s%%' or title like '%%%s%%' or brand like '%%%s%%')" % (
+			key_word, key_word, key_word) if key_word else ""
+			# print(
+			# 	"\nreview_number_min:",review_number_min,
+			# 	"\nreview_number_max:",review_number_max,
+			# 	"\nreview_score_min:",review_score_min,
+			# 	"\nreview_score_max:",review_score_max,
+			# 	"\nprice_min:",price_min,
+			# 	"\nprice_max:",price_max,
+			# 	"\nrelease_data_min:",release_data_min,
+			# 	"\nrelease_data_max:",release_data_max,
+			# 	"\nsellers:",sellers,
+			# 	"\nkey_word:",key_word
+			# )
+			sqls = (review_number_sql, review_score_sql, price_sql, release_data_sql, sellers_sql, key_word_sql)
+			sqls = " and ".join([i for i in sqls if i])
+			fulled_sql = " and fulled is not NULL" if sqls else " fulled is not NULL"
+			sql = '''select image,asin,review_number,review_score,price,level,catalog,title,brand,sellers,
+			size,weight,address,release_data from product where %s %s''' % (sqls, fulled_sql)
+			start_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+			try:
+				resultOfExcel(start_time, sql)
+			except Exception as e:
+				save_log("web")
+			file_name = '%s.xlsx'%datetime.datetime.strptime(start_time,"%Y-%m-%d %H:%M").strftime("%Y-%m-%d_%H_%M")
+			return send_from_directory("", file_name,as_attachment=True)
 		return redirect(url_for('index'))
 
 	if request.method == "GET":

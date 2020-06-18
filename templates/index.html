@@ -35,3 +35,33 @@
 <p>当前阶段：{{ status_data.work_statu }}</p>
 <p>商品数：{{ status_data.crawl_product_number }}</p>
 {% endif %}
+
+<form name="search" action="/" method="post">
+	<input type="text" name="setup" value="9" style="visibility: hidden;">
+	<br>
+	<input type="text" name="review_number_min">
+	< 评论人数 <
+	<input type="text" name="review_number_max">
+	<br>
+	<input type="text" name="review_score_min">
+	< 评论分数 <
+	<input type="text" name="review_score_max">
+	<br>
+	<input type="text" name="price_min">
+	<  价 格  <
+	<input type="text" name="price_max">
+	<br>
+	<input type="text" name="release_data_min">
+	< 上架日期 <
+	<input type="text" name="release_data_max">
+	<br>
+	销售方式：
+	<input type="checkbox" name="sellers" value="AMZ">AMZ
+	<input type="checkbox" name="sellers" value="FBA">FBA
+	<input type="checkbox" name="sellers" value="FBM">FBM
+	<br>
+	关键词：
+	<input type="text" name="key_word">
+	<br>
+	<input type="submit" value="提交">
+</form>
