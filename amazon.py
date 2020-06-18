@@ -365,7 +365,7 @@ def getPageSource(driver, url, mod=0):
 	except Exception as e:
 		pass
 	page_source = driver.page_source
-	# page_source = etree.HTML(page_source)
+	page_source = etree.HTML(page_source)
 	return page_source
 
 def fullProductInfo(page_source, asin):
@@ -558,13 +558,14 @@ def resultOfHTML():
 				target="_blank">详情</a></td><td>%s</td></tr>''' % p)
 			f.write("</tbody></table>")
 
-def resultOfExcel(start_time):
+def resultOfExcel(start_time, sql=""):
 	with connection.cursor() as cursor:
-		sql = '''select image,asin,review_number,review_score,price,level,catalog,title,brand,sellers,
-		size,weight,address,release_data from product where update_time>"%s" ''' % start_time
+		sql = sql if sql else '''select image,asin,review_number,review_score,price,level,catalog,title,
+		brand,sellers,size,weight,address,release_data from product where update_time>"%s" ''' % start_time
 		cursor.execute(sql)
 		result = cursor.fetchall()
-		workbook = xlsxwriter.Workbook('%s.xlsx'%datetime.datetime.strptime(start_time, "%Y-%m-%d %H:%M").strftime("%Y-%m-%d_%H_%M"))
+		workbook = xlsxwriter.Workbook('%s.xlsx'%datetime.datetime.strptime(start_time,
+		"%Y-%m-%d %H:%M").strftime("%Y-%m-%d_%H_%M"))
 		worksheet = workbook.add_worksheet()
 		worksheet.set_column('A:A', 27.8)
 		worksheet.set_column('B:B', 15)
