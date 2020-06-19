@@ -15,8 +15,10 @@ import sys
 import os
 
 
-# 数据库连接和参数
 def setDB():
+	'''
+	数据库连接的参数，返回数据库连接
+	'''
 	connection = pymysql.connect(
 		host = "localhost",
 		user = "root",
@@ -25,22 +27,27 @@ def setDB():
 		charset = "utf8mb4"
 	)
 	return connection
+# 默认开启数据库连接
 connection = setDB()
 # 图片保存文件夹的名称
 imageFolder = "image"
 # 线程池最大线程数
 max_download_thread = 10
-# 启动个人配置的Chrome浏览器
 def createDriver():
+	'''
+	启动个人配置的Chrome浏览器，路径根据电脑和系统的不同而不同
+	'''
 	option = webdriver.ChromeOptions()
 	option.add_argument("--user-data-dir="+
 	r"C:/Users/ASUS/AppData/Local/Google/Chrome/User Data/")
 	option.add_argument("--ignore-certificate-errors")
 	driver = webdriver.Chrome(chrome_options=option)
 	return driver
-# driver = setChrome()
 
 def save_log(source_from):
+	'''
+	报错信息保存到error_log表
+	'''
 	e_type, e_value, e_traceback = sys.exc_info()
 	error_type = e_type.__name__
 	error_message = str(e_value).replace("'", r"\'")
@@ -496,6 +503,9 @@ def crawCatalog(driver, url, max_level=2, now_level=0):
 		crawCatalog(driver, url, max_level, now_level=now_level+1)
 
 def download(url):
+	'''
+	线程中的图片下载函数
+	'''
 	headers = {
 		"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
 		"Accept-encoding": "gzip, deflate, br",
@@ -519,7 +529,7 @@ def download(url):
 
 def downloadImage():
 	'''
-	根据商品的图片链接下载保存到指定文件夹
+	根据商品的图片链接下载保存到指定文件夹，启用线程池
 	'''
 	if not os.path.exists(imageFolder):
 		os.mkdir(imageFolder)
@@ -533,15 +543,9 @@ def downloadImage():
 	pool.shutdown()
 
 def resultOfHTML():
-	bigCatalog = ['Amazon Devices & Accessories', 'Amazon Launchpad', 'Amazon Pantry', 'Appliances',
-	'Apps & Games', 'Arts, Crafts & Sewing', 'Audible Books & Originals', 'Automotive', 'Baby',
-	'Beauty & Personal Care', 'Books', 'CDs & Vinyl', 'Camera & Photo', 'Cell Phones & Accessories',
-	'Clothing, Shoes & Jewelry', 'Collectible Currencies', 'Computers & Accessories', 'Digital Music',
-	'Electronics', 'Entertainment Collectibles', 'Gift Cards', 'Grocery & Gourmet Food',
-	'Handmade Products', 'Health & Household', 'Home & Kitchen', 'Industrial & Scientific',
-	'Kindle Store', 'Kitchen & Dining', 'Magazine Subscriptions', 'Movies & TV', 'Musical Instruments',
-	'Office Products', 'Patio, Lawn & Garden', 'Pet Supplies', 'Software', 'Sports & Outdoors',
-	'Sports Collectibles', 'Tools & Home Improvement', 'Toys & Games', 'Video Games']
+	'''
+	查询数据库，生成HTML信息文档
+	'''
 	with connection.cursor() as cursor:
 		sql = '''select image,asin,review_number,review_score,price,level,catalog,title,brand,sellers,
 		size,weight,address,release_data from product where fulled=1 limit 50'''
@@ -559,6 +563,9 @@ def resultOfHTML():
 			f.write("</tbody></table>")
 
 def resultOfExcel(start_time, sql=""):
+	'''
+	查询数据库，生成EXCEL信息文档
+	'''
 	with connection.cursor() as cursor:
 		sql = sql if sql else '''select image,asin,review_number,review_score,price,level,catalog,title,
 		brand,sellers,size,weight,address,release_data from product where update_time>"%s" ''' % start_time
@@ -668,9 +675,6 @@ if __name__ == '__main__':
 	]
 	url = "https://www.amazon.com/Best-Sellers-Health-Personal-Care/zgbs/hpc/ref=zg_bs_nav_0"
 	driver = createDriver()
-	p = getPageSource(driver,url,mod=2)
-	with open("D:/k.txt", "w", encoding="utf-8") as f:
-		f.write(p)
 	# work1(driver, urls)
 	# work2(driver)
 	# keepa(driver)
