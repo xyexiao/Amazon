@@ -7,19 +7,30 @@ import pymysql
 import json
 
 
-
-# start_time = ""
-# work_statu = ""
-# crawl_product_number = 0
+'''
+用于存储任务状态的参数，保存在status.json
+任务开始的时间
+start_time = ""
+当前步骤的名称
+work_statu = ""
+已处理商品数量
+crawl_product_number = 0
+'''
 
 app = Flask(__name__)
 
 def get_status():
+	'''
+	获取任务状态
+	'''
 	with open("status.json", "r") as f:
 		status_data = json.load(f)
 	return status_data
 
 def set_status(start_time,work_statu,crawl_product_number):
+	'''
+	设置任务状态
+	'''
 	status_data = {
 		"start_time": start_time,
 		"work_statu": work_statu,
@@ -28,9 +39,10 @@ def set_status(start_time,work_statu,crawl_product_number):
 	with open("status.json", "w") as f:
 		json.dump(status_data, f)
 
-set_status("","",0)
-
 def setup1(url, number):
+	'''
+	步骤1 商品列表爬取
+	'''
 	try:
 		driver = createDriver()
 		crawCatalog(driver, url=url,max_level=int(number))
@@ -44,6 +56,9 @@ def setup1(url, number):
 		driver.quit() 
 
 def setup2():
+	'''
+	步骤2 单个商品爬取
+	'''
 	try:
 		driver = createDriver()
 		work2(driver)
@@ -57,6 +72,9 @@ def setup2():
 		driver.quit()
 
 def setup3():
+	'''
+	步骤3 keepa补充信息
+	'''
 	try:
 		driver = createDriver()
 		keepa(driver)
@@ -70,6 +88,9 @@ def setup3():
 		driver.quit()
 
 def setup4():
+	'''
+	步骤4 图片下载
+	'''
 	try:
 		downloadImage()
 		status_data = get_status()
@@ -210,3 +231,14 @@ def index():
 				set_status(**status_data)
 
 		return render_template("index.html", status_data=status_data)
+
+
+'''
+start flask for linux:
+export FLASK_APP=hello.py
+flask run --host=0.0.0.0
+
+start flask for windows:
+set FLASK_APP=hello.py
+flask run --host=0.0.0.0
+'''
